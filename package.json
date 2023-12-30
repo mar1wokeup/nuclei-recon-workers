@@ -1,0 +1,26 @@
+{
+  "name": "builtwith-api",
+  "version": "1.0.6",
+  "description": "Wrapper for the BuiltWith API",
+  "main": "src/index.js",
+  "scripts": {},
+  "homepage": "https://github.com/zcaceres/builtwith-api",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zcaceres/builtwith-api.git"
+  },
+  "keywords": [
+    "utilities",
+    "BuiltWith",
+    "apis"
+  ],
+  "author": "Zach Caceres (@zachcaceres)",
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "^4.17.15",
+    "node-fetch": "^3.1.1"
+  },
+  "devDependencies": {
+    "dotenv": "^8.2.0"
+  }
+}
