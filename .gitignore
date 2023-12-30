@@ -1,0 +1,17 @@
+.DS_Store
+/out/
+/domains/
+/hosts/
+targets.*
+/node_modules/
+/tmp/
+/src/
+/c_out/
+initial_bw/
+.env
+.npmignore
+nuclei_runner.go
+out*
+pack
+*yaml
+target*
