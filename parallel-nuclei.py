@@ -1,9 +1,8 @@
-import subprocess
 import json
-from concurrent.futures import ThreadPoolExecutor
-
+import subprocess
 import os
 import random
+from concurrent.futures import ThreadPoolExecutor
 
 def sample_random_lines(folder_path, num_lines=50):
     try:
@@ -11,44 +10,62 @@ def sample_random_lines(folder_path, num_lines=50):
         random_file = random.choice(files)
         with open(os.path.join(folder_path, random_file), 'r') as file:
             lines = file.readlines()
-            sampled_lines = random.sample(lines, min(num_lines, len(lines)))
-        with open('dom50.txt', 'w') as outfile:
-            for line in sampled_lines:
-                outfile.write(line)
-    except FileNotFoundError:
-        return ["File not found."]
+            return random.sample(lines, min(num_lines, len(lines)))
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        return []
 
 def run_commands(x):
-    
     file_path = './domains'
-    dom = sample_random_lines(file_path)
+    sampled_lines = sample_random_lines(file_path)
     
-    commands = [
-        f"echo {x} | assetfinder --subs-only | anew domains50/{x}",
-        f"cam dom50.txt | httprobe -c 50 | anew hosts/h_{x}",
-        f"cat hosts/* | nuclei -as -json-export out/o_{x}.json" #| anew c_out/c_o_{x}.json"
-    ]
-    #hosts/h_{x}
-    
-    for cmd in commands:
-        subprocess.run(cmd, shell=True)
+    if not sampled_lines:
+        return
+
+    assetfinder_domains = subprocess.run(
+        f"echo {x} | assetfinder --subs-only",
+        shell=True, capture_output=True, text=True
+    ).stdout.splitlines()
+
+    httprobe_results = subprocess.run(
+        ["httprobe", "-c", "50"],
+        input="\n".join(sampled_lines),
+        capture_output=True, text=True
+    ).stdout.splitlines()
+
+    nuclei_output = subprocess.run(
+        ["nuclei", "-as", "-json"],
+        input="\n".join(httprobe_results),
+        capture_output=True, text=True
+    ).stdout
 
     try:
-        with open(f"out/o_{x}.json", 'r') as json_file:
-            data = json.load(json_file)
-            matched_at_values = [item["matched-at"] for item in data if "matched-at" in item]
-    except (IOError, json.JSONDecodeError) as e:
-        print(f"Error reading or parsing JSON file for {x}: {e}")
+        data = json.loads(nuclei_output)
+        matched_at_values = [item["matched-at"] for item in data if "matched-at" in item]
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Error parsing JSON output for {x}: {e}")
         return
 
     for matched_at in matched_at_values:
-        cirrus_cmd = f"cirrusgo salesforce -u {matched_at} --gobj | anew cirrus-out/{matched_at}-vuln"
-        subprocess.run(cirrus_cmd, shell=True)
-        
-def update_targets_with_new_domains():
-    subprocess.run(['node', 'fetch-bw-api.ts'])
+        cirrus_output = subprocess.run(
+            ["cirrusgo", "salesforce", "-u", matched_at, "--gobj"],
+            capture_output=True, text=True
+        ).stdout
+        # TODO process cirrus output
 
-    subprocess.run('ls -Art ./initial_bw/*.txt | tail -n 1 | xargs cat | anew targets.txt', shell=True)
+def update_targets_with_new_domains():
+    subprocess.run(['node', 'fetch-bw-api.ts'], check=True)
+
+    last_file = subprocess.run(
+        'ls -Art ./initial_bw/*.txt | tail -n 1',
+        shell=True, capture_output=True, text=True
+    ).stdout.strip()
+
+    if last_file:
+        with open(last_file, 'r') as file:
+            new_domains = file.read()
+        with open('targets.txt', 'a') as file:
+            file.write(new_domains)
 
 def main():
     update_targets_with_new_domains()
